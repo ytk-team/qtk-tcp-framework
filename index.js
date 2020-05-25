@@ -1,9 +1,4 @@
-module.exports = class {
-	static get Server() {
-		return require('./server');
-	}
+const Server = require('./server');
+const Client = require('./client');
 
-	static get Client() {
-		return require('./client');
-	}
-};
+module.exports = { Server, Client };

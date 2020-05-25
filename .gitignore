@@ -1,1 +1,3 @@
 node_modules/
+test/speed.js
+.vscode/launch.json

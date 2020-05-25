@@ -17,9 +17,8 @@ module.exports = class extends EventEmitter {
 	constructor(options) {
 		super();
 		assert(Number.isInteger(options.port), 'options.port is not correctly configured');
-		if (options.host === undefined) {
-			options.host = '0.0.0.0';
-		}
+		options.host = options.host || 'localhost';
+		options.timeout = options.timeout || TIMEOUT_INTERVAL;
 
 		this._options = options;
 		this._socketMap = new Map();
@@ -34,7 +33,7 @@ module.exports = class extends EventEmitter {
 		this._checkupTimer = setInterval(() => {
 			this._now += 1;
 			for (let [socket, lastActiveTime] of this._socketMap) {
-				if ((lastActiveTime + TIMEOUT_INTERVAL) < this._now) {
+				if ((lastActiveTime + this._options.timeout) < this._now) {
 					socket.destroy(new Error(`timeout(idle for over 30 seconds`));
 				}
 			}
@@ -57,13 +56,13 @@ module.exports = class extends EventEmitter {
 		process.exit(0);
 	}
 
-	send(socket, {uuid, data}) {
-        let outgoingMessage = new Message(Message.SIGN_DATA, data, uuid);
+	send(socket, { uuid, data }) {
+		let outgoingMessage = new Message(Message.SIGN_DATA, data, uuid);
 
-        try {
+		try {
 			socket.write(outgoingMessage.toBuffer());
 		}
-		catch(err) {
+		catch (err) {
 			socket.destroy(err);
 		}
 	}
@@ -82,7 +81,7 @@ module.exports = class extends EventEmitter {
 			try {
 				this.emit('closed', socket);
 			}
-			catch(err) {
+			catch (err) {
 				this.emit('exception', socket, err);
 			}
 		});
@@ -90,7 +89,7 @@ module.exports = class extends EventEmitter {
 		try {
 			this.emit('connected', socket);
 		}
-		catch(err) {
+		catch (err) {
 			this.emit('exception', socket, err);
 		}
 	}
@@ -98,23 +97,21 @@ module.exports = class extends EventEmitter {
 	_process(socket) {
 		this._socketMap.set(socket, this._now);
 		try {
-			while(true) {
-				let {consumed, message:incomingMessage} = Message.parse(socket.buffer);
-				if (consumed === 0) {
-					break;
-				}
+			while (true) {
+				let { consumed, message: incomingMessage } = Message.parse(socket.buffer);
+				if (consumed === 0) break;
+
 				socket.buffer = socket.buffer.slice(consumed);
-				
+
 				if (incomingMessage.sign === Message.SIGN_PING) {
-					const outgoingMessage = incomingMessage;
-					socket.write(outgoingMessage.toBuffer());
+					socket.write(incomingMessage.rawBuffer);
 				}
 				else if (incomingMessage.sign === Message.SIGN_DATA) {
-					this.emit('data', socket, {uuid: incomingMessage.uuid, data: incomingMessage.payload});
+					this.emit('data', socket, { uuid: incomingMessage.uuid, data: incomingMessage.payload });
 				}
 			}
 		}
-		catch(err) {
+		catch (err) {
 			socket.destroy(err);
 			this.emit('exception', socket, err);
 		}

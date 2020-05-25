@@ -23,30 +23,32 @@ module.exports = class extends EventEmitter {
 	constructor(options) {
 		super();
 		assert(Number.isInteger(options.port), 'options.port is not correctly configured');
-        options.host = options.hasOwnProperty('host') ? options.host : options.host = 'localhost';
+		options.host = options.host || 'localhost';
+		options.heartbeat = options.heartbeat || HEART_BEAT_INTERVAL;
+		options.timeout = options.timeout || TIMEOUT_INTERVAL;
 		this._options = options;
 		this._userTerminated = false;
-        this._queuedMessages = [];
-        this._buffer = Buffer.alloc(0);
+		this._queuedMessages = [];
+		this._buffer = Buffer.alloc(0);
 		this._connect();
 
 		setInterval(() => {
-            this._now += 1;
-            if ((this._timeHeartbeat + HEART_BEAT_INTERVAL) <= this._now) {
-                if (this._status === STATUS_CONNECTED) {
-                    this._socket.write(new Message(Message.SIGN_PING).toBuffer());
-                }
-                this._timeHeartbeat = this._now;
-            }
-			if ((this._timeLastActive + TIMEOUT_INTERVAL) <= this._now) {
-                if (this._status !== STATUS_DISCONNECTED) {
-                    this._close();
-                }
+			this._now += 1;
+			if ((this._timeHeartbeat + this._options.heartbeat) <= this._now) {
+				if (this._status === STATUS_CONNECTED) {
+					this._socket.write(new Message(Message.SIGN_PING).toBuffer());
+				}
+				this._timeHeartbeat = this._now;
+			}
+			if ((this._timeLastActive + this._options.timeout) <= this._now) {
+				if (this._status !== STATUS_DISCONNECTED) {
+					this._close();
+				}
 			}
 		}, 1000);
 	}
 
-	send({uuid, data}) {
+	send({ uuid, data }) {
 		const outgoingMessage = new Message(Message.SIGN_DATA, data, uuid);
 		if (this._status === STATUS_CONNECTED) {
 			this._socket.write(outgoingMessage.toBuffer());
@@ -64,33 +66,33 @@ module.exports = class extends EventEmitter {
 	}
 
 	_connect() {
-        this._status = STATUS_CONNECTING;
-        this._now = 0;
-        this._timeHeartbeat = this._now;
-        this._timeLastActive = this._now;
+		this._status = STATUS_CONNECTING;
+		this._now = 0;
+		this._timeHeartbeat = this._now;
+		this._timeLastActive = this._now;
 		this._socket = net.createConnection(this._options.port, this._options.host, () => {
 			this._status = STATUS_CONNECTED;
 			for (let outgoingMessage of this._queuedMessages) {
-                this._socket.write(outgoingMessage.toBuffer());
+				this._socket.write(outgoingMessage.toBuffer());
 			}
 			this._queuedMessages = [];
 			try {
 				this.emit('connected');
 			}
-			catch(err) {
+			catch (err) {
 				this.emit('exception', err);
 			}
 		});
 		this._socket.on('data', (incomingBuffer) => {
-            this._buffer = Buffer.concat([this._buffer, incomingBuffer]);
-            this._timeLastActive = this._now;
+			this._buffer = Buffer.concat([this._buffer, incomingBuffer]);
+			this._timeLastActive = this._now;
 			this._process();
 		});
 		this._socket.on('error', (err) => {
 			this.emit('exception', err);
 		});
 		this._socket.on('close', () => {
-            this._close();
+			this._close();
 		});
 	}
 
@@ -100,7 +102,7 @@ module.exports = class extends EventEmitter {
 		try {
 			this.emit('closed');
 		}
-		catch(err) {
+		catch (err) {
 			this.emit('exception', err);
 		}
 
@@ -115,22 +117,20 @@ module.exports = class extends EventEmitter {
 	}
 
 	_process() {
-        while(true) {
-            let {consumed, message:incomingMessage} = Message.parse(this._buffer);
-            if (consumed === 0) {
-                break;
-            }
-            this._buffer = this._buffer.slice(consumed);
+		while (true) {
+			let { consumed, message: incomingMessage } = Message.parse(this._buffer);
+			if (consumed === 0) break;
+			this._buffer = this._buffer.slice(consumed);
 
-            if (incomingMessage.sign === Message.SIGN_DATA) {
-                try {
-                    this.emit('data', {uuid:incomingMessage.uuid, data:incomingMessage.payload});
-                }
-                catch(err) {
+			if (incomingMessage.sign === Message.SIGN_DATA) {
+				try {
+					this.emit('data', { uuid: incomingMessage.uuid, data: incomingMessage.payload });
+				}
+				catch (err) {
 					this.emit('exception', err);
-                    continue;
-                }
-            }
-        }
+					continue;
+				}
+			}
+		}
 	}
 };

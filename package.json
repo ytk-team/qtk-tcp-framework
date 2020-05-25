@@ -1,6 +1,6 @@
 {
   "name": "@qtk/tcp-framework",
-  "version": "2.0.10",
+  "version": "3.0.0",
   "description": "",
   "main": "index.js",
   "directories": {
@@ -12,22 +12,24 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rayanywhere/qtk-tcp-framework.git"
+    "url": "git+https://github.com/vanchu001/qtk-tcp-framework.git"
   },
   "keywords": [
     "tcp",
     "framework",
+    "async",
     "server",
     "client"
   ],
-  "author": "sophia",
-  "license": "ISC",
+  "author": "sophia && skip",
+  "license": "MIT",
   "bugs": {
-    "url": "https://github.com/rayanywhere/qtk-tcp-framework/issues"
+    "url": "https://github.com/vanchu001/qtk-tcp-framework/issues"
   },
-  "homepage": "https://github.com/rayanywhere/qtk-tcp-framework#readme",
+  "homepage": "https://github.com/vanchu001/qtk-tcp-framework#readme",
   "dependencies": {
-    "mocha": "^4.1.0",
-    "uuid": "^3.2.1"
+    "mocha": "^7.2.0",
+    "power-assert": "^1.6.1",
+    "uuid": "^8.1.0"
   }
 }
