@@ -53,7 +53,6 @@ module.exports = class extends EventEmitter {
 			this._checkupTimer = undefined;
 		}
 		this.emit('stopped');
-		process.exit(0);
 	}
 
 	send(socket, { uuid, data }) {
